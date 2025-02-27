@@ -1,6 +1,5 @@
 package com.mc3699.ccdisplays.holoprojector;
 
-import com.mc3699.ccdisplays.holoprojector.rendering.HoloTextElement;
 import dan200.computercraft.api.lua.LuaFunction;
 import dan200.computercraft.api.peripheral.IPeripheral;
 import org.jetbrains.annotations.Nullable;
