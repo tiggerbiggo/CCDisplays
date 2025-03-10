@@ -1,7 +1,6 @@
 package com.mc3699.ccdisplays.holoprojector.rendering;
 
 import com.mc3699.ccdisplays.holoprojector.HoloProjectorBlockEntity;
-import com.mc3699.ccdisplays.util.ClientPositionTracker;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -34,7 +33,7 @@ public class HoloProjectorBlockEntityRenderer implements BlockEntityRenderer<Hol
         List<HoloTextElement> elementList = blockEntity.getElementList();
         HashMap<String, HoloOffset> offsets = blockEntity.getOffsets();
         HashMap<String, List<HoloTextElement>> offsetDraws = new HashMap<>();
-        HashMap<String, String> playerBindings = blockEntity.getPlayerBindings();
+        HashMap<String, PlayerBindings> bindingMap = blockEntity.getBindingMap();
         BlockPos projectorPos = blockEntity.getBlockPos();
         poseStack.pushPose();
         poseStack.translate(0.5,0.5, 0.5); // Render from the center of the block
@@ -47,27 +46,17 @@ public class HoloProjectorBlockEntityRenderer implements BlockEntityRenderer<Hol
                     element.draw(poseStack, multiBufferSource);
                 }
                 else{
-                    List<HoloTextElement> drawList = offsetDraws.get(offset);
-                    if(drawList == null){
-                        drawList = new ArrayList<>();
-                        offsetDraws.put(offset, drawList);
-                    }
+                    List<HoloTextElement> drawList = offsetDraws.computeIfAbsent(offset, k -> new ArrayList<>());
                     drawList.add(element);
                 }
             }
             for(String s : offsetDraws.keySet()){
                 HoloOffset offset = offsets.get(s);
-                String boundPlayer = playerBindings.get(s);
+                PlayerBindings bindings = bindingMap.get(s);
                 if(offset != null){
                     poseStack.pushPose();
-                    if(boundPlayer != null){
-                        Vec3 playerPos = ClientPositionTracker.getInterpolatedPlayerPosition(boundPlayer, partialTick);
-                        if(playerPos != null){
-                            double x = playerPos.x - projectorPos.getX();
-                            double y = playerPos.y - projectorPos.getY();
-                            double z = playerPos.z - projectorPos.getZ();
-                            poseStack.translate(x, y, z);
-                        }
+                    if (bindings != null) {
+                        bindings.applyModifiers(poseStack, partialTick, projectorPos.getCenter());
                     }
                     offset.draw(poseStack, multiBufferSource, offsetDraws.get(s));
                     poseStack.popPose();

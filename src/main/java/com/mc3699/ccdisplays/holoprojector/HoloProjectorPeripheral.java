@@ -1,5 +1,6 @@
 package com.mc3699.ccdisplays.holoprojector;
 
+import com.mc3699.ccdisplays.holoprojector.rendering.BindingModifier;
 import com.mc3699.ccdisplays.holoprojector.rendering.HoloOffset;
 import com.mc3699.ccdisplays.holoprojector.rendering.HoloTextElement;
 import dan200.computercraft.api.lua.LuaFunction;
@@ -82,8 +83,16 @@ public class HoloProjectorPeripheral implements IPeripheral {
     }
 
     @LuaFunction
-    public boolean setPlayerBinding(String offsetName, String playerName){
-        return this.blockEntity.setPlayerBinding(offsetName, playerName);
+    public boolean setPlayerBinding(String offsetName, String playerName, String modifierType){
+        BindingModifier modifier;
+        try {
+            modifier = BindingModifier.valueOf(modifierType);
+        }
+        catch(IllegalArgumentException e){
+            return false;
+        }
+
+        return this.blockEntity.setPlayerBinding(offsetName, playerName, modifier);
     }
 
     @LuaFunction

@@ -1,13 +1,16 @@
 package com.mc3699.ccdisplays.holoprojector;
 
+import com.mc3699.ccdisplays.holoprojector.rendering.BindingModifier;
 import com.mc3699.ccdisplays.holoprojector.rendering.HoloOffset;
 import com.mc3699.ccdisplays.holoprojector.rendering.HoloTextElement;
+import com.mc3699.ccdisplays.holoprojector.rendering.PlayerBindings;
 import com.mc3699.ccdisplays.util.ModBlockEntities;
 import com.mc3699.ccdisplays.util.ModCapabilities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
@@ -28,7 +31,8 @@ public class HoloProjectorBlockEntity extends BlockEntity {
     private final List<HoloTextElement> elementList = new ArrayList<>();
     private final HashMap<String, HoloOffset> offsetList = new HashMap<>();
 
-    private final HashMap<String, String> playerBindings = new HashMap<>();
+    //Map of offset names to player bindings
+    private final HashMap<String, PlayerBindings> bindingMap = new HashMap<>();
 
     private final HoloProjectorPeripheral peripheral;
     private final LazyOptional peripheralLazyOptional;
@@ -67,24 +71,27 @@ public class HoloProjectorBlockEntity extends BlockEntity {
         return false;
     }
 
-    public boolean setPlayerBinding(String offsetName, String playerName){
-        if(offsetName == null || playerName == null){
+    public boolean setPlayerBinding(String offsetName, String playerName, BindingModifier modifier){
+        if(offsetName == null || playerName == null || modifier == null){
             return false;
         }
-        playerBindings.put(offsetName, playerName);
+        PlayerBindings bindings = bindingMap.computeIfAbsent(offsetName, k -> new PlayerBindings());
+
+        bindings.addModifier(playerName, modifier);
+
         level.sendBlockUpdated(getBlockPos(),getBlockState(),getBlockState(),3);
         return true;
     }
 
-    public HashMap<String, String> getPlayerBindings(){
-        return playerBindings;
+    public HashMap<String, PlayerBindings> getBindingMap(){
+        return bindingMap;
     }
 
     public void clearElements()
     {
         this.elementList.clear();
         this.offsetList.clear();
-        this.playerBindings.clear();
+        this.bindingMap.clear();
         setChanged();
         level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
     }
@@ -117,15 +124,17 @@ public class HoloProjectorBlockEntity extends BlockEntity {
         pTag.put("offset", offsetListTag);
 
         ListTag playerBindingTag = new ListTag();
+        ListTag offsetNameTag = new ListTag();
 
-        for(String s : playerBindings.keySet()){
-            CompoundTag tag = new CompoundTag();
-            tag.putString("offsetName", s);
-            tag.putString("playerName", playerBindings.get(s));
+        for(String s : bindingMap.keySet()){
+            PlayerBindings bindings = bindingMap.get(s);
+            CompoundTag tag = bindings.generateTag();
             playerBindingTag.add(tag);
+            offsetNameTag.add(StringTag.valueOf(s));
         }
 
         pTag.put("playerBinding", playerBindingTag);
+        pTag.put("offsetBindings", offsetNameTag);
     }
 
     @Override
@@ -152,13 +161,20 @@ public class HoloProjectorBlockEntity extends BlockEntity {
                 this.offsetList.put(offsetTag.getString("offsetName"), offset);
             }
         }
-        if(pTag.contains("playerBinding", ListTag.TAG_LIST))
-        {
-            ListTag playerBindingTag = pTag.getList("playerBinding", ListTag.TAG_COMPOUND);
-            for(int i = 0; i < playerBindingTag.size(); i++)
+        if(pTag.contains("offsetBindings", ListTag.TAG_LIST)){
+            if(pTag.contains("playerBinding", ListTag.TAG_LIST))
             {
-                CompoundTag bindingTag = playerBindingTag.getCompound(i);
-                this.playerBindings.put(bindingTag.getString("offsetName"), bindingTag.getString("playerName"));
+                ListTag playerBindingTag = pTag.getList("playerBinding", ListTag.TAG_COMPOUND);
+                ListTag offsetNameTag = pTag.getList("offsetBindings", ListTag.TAG_STRING);
+                if(playerBindingTag.size() != offsetNameTag.size()){
+                    return;
+                }
+                for(int i = 0; i < playerBindingTag.size(); i++)
+                {
+                    CompoundTag bindingTag = playerBindingTag.getCompound(i);
+                    String offsetName = offsetNameTag.getString(i);
+                    this.bindingMap.put(offsetName, PlayerBindings.fromTag(bindingTag));
+                }
             }
         }
     }
