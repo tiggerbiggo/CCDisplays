@@ -1,5 +1,7 @@
 package com.mc3699.ccdisplays.holoprojector;
 
+import com.mc3699.ccdisplays.holoprojector.rendering.HoloOffset;
+import com.mc3699.ccdisplays.holoprojector.rendering.HoloTextElement;
 import dan200.computercraft.api.lua.LuaFunction;
 import dan200.computercraft.api.peripheral.IPeripheral;
 import org.jetbrains.annotations.Nullable;
@@ -20,17 +22,68 @@ public class HoloProjectorPeripheral implements IPeripheral {
     }
 
     @LuaFunction
-    public final int addText(String text, double x, double y, double z, double rotation, double scale, int color)
+    public final int addText(String text, double x, double y, double z, double rotation, double scale, int color, @Nullable String offset)
     {
-        return this.blockEntity.addText(text, (float) x, (float) y, (float) z, (float) rotation, (float) scale, color);
+        HoloTextElement element;
+        if(offset == null) {
+            element = new HoloTextElement((float) x, (float) y, (float) z, (float) rotation, (float) scale, color, text);
+        }
+        else{
+            element = new HoloTextElement((float) x, (float) y, (float) z, (float) rotation, (float) scale, color, text, offset);
+        }
+        return this.blockEntity.addText(element);
     }
 
     @LuaFunction
-    public final boolean replaceText(int index, String text, double x, double y, double z, double rotation, double scale, int color) {
+    public final boolean replaceText(int index, String text, double x, double y, double z, double rotation, double scale, int color, @Nullable String offset) {
         if(index >= 0) {
-            return this.blockEntity.replaceText(index, text, (float) x, (float) y, (float) z, (float) rotation, (float) scale, color);
+            HoloTextElement element;
+            if(offset == null) {
+                element = new HoloTextElement((float) x, (float) y, (float) z, (float) rotation, (float) scale, color, text);
+            }
+            else{
+                element = new HoloTextElement((float) x, (float) y, (float) z, (float) rotation, (float) scale, color, text, offset);
+            }
+            return this.blockEntity.replaceText(index, element);
         }
         return false;
+    }
+
+    @LuaFunction
+    public final boolean setTextOffset(int index, String offsetName){
+        HoloTextElement toUpdate = this.blockEntity.getText(index);
+        if(toUpdate == null){
+            return false;
+        }
+        HoloTextElement newText = new HoloTextElement(
+                toUpdate.getXPos(),
+                toUpdate.getYPos(),
+                toUpdate.getZPos(),
+                toUpdate.getRotation(),
+                toUpdate.getScale(),
+                toUpdate.getColor(),
+                toUpdate.getText(),
+                offsetName
+        );
+
+        return this.blockEntity.replaceText(index, newText);
+    }
+
+    @LuaFunction
+    public final boolean setOffset(String name, double xPos, double yPos, double zPos, double xRot, double yRot, double zRot, double xScale, double yScale, double zScale){
+        if(name == ""){
+            return false;
+        }
+        HoloOffset offset = new HoloOffset(
+                (float)xPos, (float)yPos, (float)zPos,
+                (float)xRot, (float)yRot, (float)zRot,
+                (float)xScale, (float)yScale, (float)zScale);
+        return this.blockEntity.setOffset(name, offset);
+    }
+
+    @LuaFunction
+    public boolean setPlayerBinding(String offsetName, String playerName){
+        return this.blockEntity.setPlayerBinding(offsetName, playerName);
     }
 
     @LuaFunction

@@ -1,19 +1,18 @@
 package com.mc3699.ccdisplays.holoprojector;
 
+import com.mc3699.ccdisplays.holoprojector.rendering.HoloOffset;
 import com.mc3699.ccdisplays.holoprojector.rendering.HoloTextElement;
 import com.mc3699.ccdisplays.util.ModBlockEntities;
 import com.mc3699.ccdisplays.util.ModCapabilities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.IntTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.levelgen.feature.SpringFeature;
 import net.minecraft.world.phys.AABB;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
@@ -21,27 +20,30 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class HoloProjectorBlockEntity extends BlockEntity {
 
     private final List<HoloTextElement> elementList = new ArrayList<>();
+    private final HashMap<String, HoloOffset> offsetList = new HashMap<>();
 
+    private final HashMap<String, String> playerBindings = new HashMap<>();
 
     private final HoloProjectorPeripheral peripheral;
     private final LazyOptional peripheralLazyOptional;
 
-    public int addText(String text, float x, float y, float z, float rotation, float scale, int color)
+    public int addText(HoloTextElement element)
     {
-        this.elementList.add(new HoloTextElement(x,y,z,rotation,scale,color,text));
+        this.elementList.add(element);
         setChanged();
         level.sendBlockUpdated(getBlockPos(),getBlockState(),getBlockState(),3);
         return this.elementList.size() - 1;
     }
 
-    public boolean replaceText(int index, String text, float x, float y, float z, float rotation, float scale, int color){
+    public boolean replaceText(int index, HoloTextElement element){
         if(index >= 0 && index < elementList.size()) {
-            elementList.set(index, new HoloTextElement(x,y,z,rotation,scale,color,text));
+            elementList.set(index, element);
             setChanged();
             level.sendBlockUpdated(getBlockPos(),getBlockState(),getBlockState(),3);
             return true;
@@ -49,9 +51,40 @@ public class HoloProjectorBlockEntity extends BlockEntity {
         return false;
     }
 
+    public HoloTextElement getText(int index){
+        if(index >= 0 && index < elementList.size()) {
+            return elementList.get(index);
+        }
+        return null;
+    }
+
+    public boolean setOffset(String name, HoloOffset offset){
+        if (!"".equals(name)){
+            offsetList.put(name, offset);
+            level.sendBlockUpdated(getBlockPos(),getBlockState(),getBlockState(),3);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean setPlayerBinding(String offsetName, String playerName){
+        if(offsetName == null || playerName == null){
+            return false;
+        }
+        playerBindings.put(offsetName, playerName);
+        level.sendBlockUpdated(getBlockPos(),getBlockState(),getBlockState(),3);
+        return true;
+    }
+
+    public HashMap<String, String> getPlayerBindings(){
+        return playerBindings;
+    }
+
     public void clearElements()
     {
         this.elementList.clear();
+        this.offsetList.clear();
+        this.playerBindings.clear();
         setChanged();
         level.sendBlockUpdated(getBlockPos(), getBlockState(), getBlockState(), 3);
     }
@@ -68,18 +101,31 @@ public class HoloProjectorBlockEntity extends BlockEntity {
 
         for(HoloTextElement element : elementList)
         {
-            CompoundTag elementTag = new CompoundTag();
-            elementTag.putString("text",element.getText());
-            elementTag.putFloat("x",element.getXPos());
-            elementTag.putFloat("y",element.getYPos());
-            elementTag.putFloat("z",element.getZPos());
-            elementTag.putFloat("rotation",element.getRotation());
-            elementTag.putFloat("scale",element.getScale());
-            elementTag.putInt("color",element.getColor());
-            elementListTag.add(elementTag);
+            elementListTag.add(element.generateTag());
         }
         pTag.put("text", elementListTag);
 
+        ListTag offsetListTag = new ListTag();
+
+        for(String s : offsetList.keySet())
+        {
+            HoloOffset element = offsetList.get(s);
+            CompoundTag tag = element.generateTag();
+            tag.putString("offsetName", s);
+            offsetListTag.add(tag);
+        }
+        pTag.put("offset", offsetListTag);
+
+        ListTag playerBindingTag = new ListTag();
+
+        for(String s : playerBindings.keySet()){
+            CompoundTag tag = new CompoundTag();
+            tag.putString("offsetName", s);
+            tag.putString("playerName", playerBindings.get(s));
+            playerBindingTag.add(tag);
+        }
+
+        pTag.put("playerBinding", playerBindingTag);
     }
 
     @Override
@@ -93,15 +139,26 @@ public class HoloProjectorBlockEntity extends BlockEntity {
             for(int i = 0; i < textListTag.size(); i++)
             {
                 CompoundTag elementTag = textListTag.getCompound(i);
-                HoloTextElement element = new HoloTextElement(
-                        elementTag.getFloat("x"),
-                        elementTag.getFloat("y"),
-                        elementTag.getFloat("z"),
-                        elementTag.getFloat("rotation"),
-                        elementTag.getFloat("scale"),
-                        elementTag.getInt("color"),
-                        elementTag.getString("text"));
-                this.elementList.add(element);
+                this.elementList.add(HoloTextElement.fromTag(elementTag));
+            }
+        }
+        if(pTag.contains("offset", ListTag.TAG_LIST))
+        {
+            ListTag offsetListTag = pTag.getList("offset", ListTag.TAG_COMPOUND);
+            for(int i = 0; i < offsetListTag.size(); i++)
+            {
+                CompoundTag offsetTag = offsetListTag.getCompound(i);
+                HoloOffset offset = HoloOffset.fromTag(offsetTag);
+                this.offsetList.put(offsetTag.getString("offsetName"), offset);
+            }
+        }
+        if(pTag.contains("playerBinding", ListTag.TAG_LIST))
+        {
+            ListTag playerBindingTag = pTag.getList("playerBinding", ListTag.TAG_COMPOUND);
+            for(int i = 0; i < playerBindingTag.size(); i++)
+            {
+                CompoundTag bindingTag = playerBindingTag.getCompound(i);
+                this.playerBindings.put(bindingTag.getString("offsetName"), bindingTag.getString("playerName"));
             }
         }
     }
@@ -144,5 +201,9 @@ public class HoloProjectorBlockEntity extends BlockEntity {
     @Override
     public AABB getRenderBoundingBox() {
         return new AABB(worldPosition.offset(-128, -128, -128), worldPosition.offset(128, 128, 128));
+    }
+
+    public HashMap<String, HoloOffset> getOffsets() {
+        return offsetList;
     }
 }

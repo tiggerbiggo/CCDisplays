@@ -1,17 +1,17 @@
 package com.mc3699.ccdisplays.holoprojector.rendering;
 
 import com.mc3699.ccdisplays.holoprojector.HoloProjectorBlockEntity;
+import com.mc3699.ccdisplays.util.ClientPositionTracker;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 public class HoloProjectorBlockEntityRenderer implements BlockEntityRenderer<HoloProjectorBlockEntity> {
@@ -19,54 +19,62 @@ public class HoloProjectorBlockEntityRenderer implements BlockEntityRenderer<Hol
     private final BlockEntityRendererProvider.Context context;
 
     private float scale = 0.01f;
-    private List<HoloTextElement> elementList = new ArrayList<>();
 
     public HoloProjectorBlockEntityRenderer(BlockEntityRendererProvider.Context context)
     {
         this.context = context;
     }
 
-    private void drawText(String text, float x, float y, float z, float rotation, float scale, int color, PoseStack pPoseStack, MultiBufferSource pBuffer) {
-
-        pPoseStack.pushPose();
-        pPoseStack.translate(x,y,z);
-        pPoseStack.mulPose(Axis.ZP.rotationDegrees(-180));
-        pPoseStack.scale(scale,scale,scale);
-        pPoseStack.mulPose(Axis.YP.rotationDegrees(rotation));
-        Font font = Minecraft.getInstance().font;
-        font.drawInBatch(
-                text,
-                0,
-                0,
-                color,
-                false,
-                pPoseStack.last().pose(),
-                pBuffer,
-                Font.DisplayMode.NORMAL,
-                0x00AA00,
-                0xF000F0
-        );
-
-        pPoseStack.popPose();
-
-    }
-
     @Override
-    public void render(HoloProjectorBlockEntity blockEntity, float v, PoseStack poseStack, MultiBufferSource multiBufferSource, int i, int i1) {
+    public void render(HoloProjectorBlockEntity blockEntity, float partialTick, PoseStack poseStack, MultiBufferSource multiBufferSource, int i, int i1) {
 
         RenderSystem.depthMask(true);
         RenderSystem.disableDepthTest();
 
-        elementList = blockEntity.getElementList();
-
+        List<HoloTextElement> elementList = blockEntity.getElementList();
+        HashMap<String, HoloOffset> offsets = blockEntity.getOffsets();
+        HashMap<String, List<HoloTextElement>> offsetDraws = new HashMap<>();
+        HashMap<String, String> playerBindings = blockEntity.getPlayerBindings();
+        BlockPos projectorPos = blockEntity.getBlockPos();
+        poseStack.pushPose();
+        poseStack.translate(0.5,0.5, 0.5); // Render from the center of the block
         if(elementList != null && !elementList.isEmpty())
         {
             for(HoloTextElement element: elementList)
             {
-                drawText(element.getText(), element.getXPos(), element.getYPos(), element.getZPos(), element.getRotation(), scale * element.getScale(), element.getColor(), poseStack, multiBufferSource);
+                String offset = element.getOffset();
+                if(offset == "") {
+                    element.draw(poseStack, multiBufferSource);
+                }
+                else{
+                    List<HoloTextElement> drawList = offsetDraws.get(offset);
+                    if(drawList == null){
+                        drawList = new ArrayList<>();
+                        offsetDraws.put(offset, drawList);
+                    }
+                    drawList.add(element);
+                }
+            }
+            for(String s : offsetDraws.keySet()){
+                HoloOffset offset = offsets.get(s);
+                String boundPlayer = playerBindings.get(s);
+                if(offset != null){
+                    poseStack.pushPose();
+                    if(boundPlayer != null){
+                        Vec3 playerPos = ClientPositionTracker.getInterpolatedPlayerPosition(boundPlayer, partialTick);
+                        if(playerPos != null){
+                            double x = playerPos.x - projectorPos.getX();
+                            double y = playerPos.y - projectorPos.getY();
+                            double z = playerPos.z - projectorPos.getZ();
+                            poseStack.translate(x, y, z);
+                        }
+                    }
+                    offset.draw(poseStack, multiBufferSource, offsetDraws.get(s));
+                    poseStack.popPose();
+                }
             }
         }
-
+        poseStack.popPose();
         RenderSystem.enableDepthTest();
 
     }
