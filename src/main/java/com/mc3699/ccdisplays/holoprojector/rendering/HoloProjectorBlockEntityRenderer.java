@@ -1,17 +1,17 @@
 package com.mc3699.ccdisplays.holoprojector.rendering;
 
 import com.mc3699.ccdisplays.holoprojector.HoloProjectorBlockEntity;
+import com.mc3699.ccdisplays.holoprojector.rendering.offset.HoloOffset;
+import com.mc3699.ccdisplays.holoprojector.rendering.offset.PlayerBindings;
+import com.mc3699.ccdisplays.holoprojector.rendering.primitive.HoloPrimitiveList;
+import com.mc3699.ccdisplays.holoprojector.rendering.text.HoloTextList;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Matrix4f;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,38 +28,35 @@ public class HoloProjectorBlockEntityRenderer implements BlockEntityRenderer<Hol
 
     @Override
     public void render(HoloProjectorBlockEntity blockEntity, float partialTick, PoseStack poseStack, MultiBufferSource multiBufferSource, int i, int i1) {
-
-
-
-
+        ElementManager manager = blockEntity.getElementManager();
 
         RenderSystem.depthMask(true);
         RenderSystem.disableDepthTest();
 
-        List<HoloTextElement> elementList = blockEntity.getElementList();
-        HashMap<String, HoloOffset> offsets = blockEntity.getOffsets();
-        HashMap<String, List<HoloTextElement>> offsetDraws = new HashMap<>();
-        HashMap<String, PlayerBindings> bindingMap = blockEntity.getBindingMap();
+        HoloTextList textList = manager.getTextList();
+        HoloPrimitiveList primitiveList = manager.getPrimitiveList();
+
+        List<IHoloDrawable> elementList = new ArrayList<>();
+        elementList.addAll(textList.elements());
+        elementList.addAll(primitiveList.elements());
+
+        HashMap<String, HoloOffset> offsets = manager.getOffsets();
+        HashMap<String, List<IHoloDrawable>> offsetDraws = new HashMap<>();
+        HashMap<String, PlayerBindings> bindingMap = manager.getBindingMap();
         BlockPos projectorPos = blockEntity.getBlockPos();
         poseStack.pushPose();
         poseStack.translate(0.5,0.5, 0.5); // Render from the center of the block
 
-
-        VertexConsumer primitiveConsumer = multiBufferSource.getBuffer(RenderType.debugQuads());
-
-        RenderPrimitives.drawSphere(primitiveConsumer, poseStack, i, 0,5,0,3, 255,0,0,255);
-
-
-        if(elementList != null && !elementList.isEmpty())
+        if(!elementList.isEmpty())
         {
-            for(HoloTextElement element: elementList)
+            for(IHoloDrawable element: elementList)
             {
-                String offset = element.getOffset();
+                String offset = element.getOffsetName();
                 if(offset == "") {
                     element.draw(poseStack, multiBufferSource);
                 }
                 else{
-                    List<HoloTextElement> drawList = offsetDraws.computeIfAbsent(offset, k -> new ArrayList<>());
+                    List<IHoloDrawable> drawList = offsetDraws.computeIfAbsent(offset, k -> new ArrayList<>());
                     drawList.add(element);
                 }
             }

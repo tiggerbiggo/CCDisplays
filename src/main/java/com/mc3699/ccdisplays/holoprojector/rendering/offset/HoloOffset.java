@@ -1,10 +1,12 @@
-package com.mc3699.ccdisplays.holoprojector.rendering;
+package com.mc3699.ccdisplays.holoprojector.rendering.offset;
 
+import com.mc3699.ccdisplays.holoprojector.rendering.IHoloDrawable;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.nbt.CompoundTag;
 
+import java.util.HashMap;
 import java.util.List;
 
 public class HoloOffset {
@@ -28,6 +30,10 @@ public class HoloOffset {
         this.xScale = xScale;
         this.yScale = yScale;
         this.zScale = zScale;
+    }
+
+    public HoloOffset(){
+        this(0, 0, 0, 0, 0, 0, 1, 1, 1);
     }
 
     public float getxPos() {
@@ -66,17 +72,28 @@ public class HoloOffset {
         return zScale;
     }
 
-    public void draw(PoseStack pPoseStack, MultiBufferSource pBuffer, List<HoloTextElement> elements) {
+    //Will eventually remove this, and just use applyOffset instead
+    //The goal is for each element to have its own offset
+    @Deprecated
+    public void draw(PoseStack pPoseStack, MultiBufferSource pBuffer, List<IHoloDrawable> elements) {
         pPoseStack.pushPose();
         pPoseStack.translate(this.xPos,this.yPos,this.zPos);
         pPoseStack.mulPose(Axis.XP.rotationDegrees(this.xRot));
         pPoseStack.mulPose(Axis.YP.rotationDegrees(this.yRot));
         pPoseStack.mulPose(Axis.ZP.rotationDegrees(this.zRot));
         pPoseStack.scale(this.xScale,this.yScale,this.zScale);
-        for(HoloTextElement element : elements){
+        for(IHoloDrawable element : elements){
             element.draw(pPoseStack, pBuffer);
         }
         pPoseStack.popPose();
+    }
+
+    public void applyOffset(PoseStack pPoseStack) {
+        pPoseStack.translate(this.xPos,this.yPos,this.zPos);
+        pPoseStack.mulPose(Axis.XP.rotationDegrees(this.xRot));
+        pPoseStack.mulPose(Axis.YP.rotationDegrees(this.yRot));
+        pPoseStack.mulPose(Axis.ZP.rotationDegrees(this.zRot));
+        pPoseStack.scale(this.xScale,this.yScale,this.zScale);
     }
 
     public CompoundTag generateTag(){
@@ -105,5 +122,44 @@ public class HoloOffset {
                 tag.getFloat("yScale"),
                 tag.getFloat("zScale")
         );
+    }
+
+    private static float getParamOrDefault(HashMap<String, Object> params, String key, float defaultValue) {
+        Object value = params.get(key);
+        if (value == null) {
+            return defaultValue;
+        } else if (value instanceof Number) {
+            return ((Number) value).floatValue();
+        } else {
+            return defaultValue;
+        }
+    }
+    public static HoloOffset fromParameterMap(HashMap<String, Object> params){
+        if(params == null){
+            return new HoloOffset();
+        }
+        float x = getParamOrDefault(params, "x", 0);
+        float y = getParamOrDefault(params, "y", 0);
+        float z = getParamOrDefault(params, "z", 0);
+        float rx = getParamOrDefault(params, "rx", 0);
+        float ry = getParamOrDefault(params, "ry", 0);
+        float rz = getParamOrDefault(params, "rz", 0);
+        float sx = getParamOrDefault(params, "sx", 1);
+        float sy = getParamOrDefault(params, "sy", 1);
+        float sz = getParamOrDefault(params, "sz", 1);
+
+        return new HoloOffset(x, y, z, rx, ry, rz, sx, sy, sz);
+    }
+
+    public void putMap(HashMap<String, Object> result) {
+        result.put("x", xPos);
+        result.put("y", yPos);
+        result.put("z", zPos);
+        result.put("rx", xRot);
+        result.put("ry", yRot);
+        result.put("rz", zRot);
+        result.put("sx", xScale);
+        result.put("sy", yScale);
+        result.put("sz", zScale);
     }
 }

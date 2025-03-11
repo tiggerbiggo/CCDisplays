@@ -1,5 +1,6 @@
-package com.mc3699.ccdisplays.holoprojector.rendering;
+package com.mc3699.ccdisplays.holoprojector.rendering.text;
 
+import com.mc3699.ccdisplays.holoprojector.rendering.IHoloDrawable;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
@@ -7,7 +8,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.nbt.CompoundTag;
 
-public class HoloTextElement {
+public class HoloTextElement implements IHoloDrawable {
 
     private final float xPos;
     private final float yPos;
@@ -16,7 +17,7 @@ public class HoloTextElement {
     private final float rotation;
     private final float scale;
     private final String text;
-    private final String offset;
+    private final String offsetName;
 
     public HoloTextElement(float x, float y, float z, float rotation, float scale, int color, String text, String offset)
     {
@@ -27,7 +28,7 @@ public class HoloTextElement {
         this.text = text;
         this.scale = scale;
         this.rotation = rotation;
-        this.offset = offset;
+        this.offsetName = offset;
     }
     public HoloTextElement(float x, float y, float z, float rotation, float scale, int color, String text)
     {
@@ -64,8 +65,8 @@ public class HoloTextElement {
         return scale;
     }
 
-    public String getOffset(){
-        return offset;
+    public String getOffsetName(){
+        return offsetName;
     }
 
     public void draw(PoseStack pPoseStack, MultiBufferSource pBuffer) {
@@ -100,7 +101,7 @@ public class HoloTextElement {
         elementTag.putFloat("rotation",this.rotation);
         elementTag.putFloat("scale",this.scale);
         elementTag.putInt("color",this.color);
-        elementTag.putString("offset",this.offset);
+        elementTag.putString("offset",this.offsetName);
         return elementTag;
     }
 

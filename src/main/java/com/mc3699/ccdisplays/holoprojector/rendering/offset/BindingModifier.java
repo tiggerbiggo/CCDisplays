@@ -1,4 +1,4 @@
-package com.mc3699.ccdisplays.holoprojector.rendering;
+package com.mc3699.ccdisplays.holoprojector.rendering.offset;
 
 import com.mc3699.ccdisplays.util.ClientPositionTracker;
 import com.mojang.blaze3d.vertex.PoseStack;
