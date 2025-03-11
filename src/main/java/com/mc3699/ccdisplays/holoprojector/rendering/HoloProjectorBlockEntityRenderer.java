@@ -3,11 +3,15 @@ package com.mc3699.ccdisplays.holoprojector.rendering;
 import com.mc3699.ccdisplays.holoprojector.HoloProjectorBlockEntity;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,8 +21,6 @@ public class HoloProjectorBlockEntityRenderer implements BlockEntityRenderer<Hol
 
     private final BlockEntityRendererProvider.Context context;
 
-    private float scale = 0.01f;
-
     public HoloProjectorBlockEntityRenderer(BlockEntityRendererProvider.Context context)
     {
         this.context = context;
@@ -26,6 +28,10 @@ public class HoloProjectorBlockEntityRenderer implements BlockEntityRenderer<Hol
 
     @Override
     public void render(HoloProjectorBlockEntity blockEntity, float partialTick, PoseStack poseStack, MultiBufferSource multiBufferSource, int i, int i1) {
+
+
+
+
 
         RenderSystem.depthMask(true);
         RenderSystem.disableDepthTest();
@@ -37,6 +43,13 @@ public class HoloProjectorBlockEntityRenderer implements BlockEntityRenderer<Hol
         BlockPos projectorPos = blockEntity.getBlockPos();
         poseStack.pushPose();
         poseStack.translate(0.5,0.5, 0.5); // Render from the center of the block
+
+
+        VertexConsumer primitiveConsumer = multiBufferSource.getBuffer(RenderType.debugQuads());
+
+        RenderPrimitives.drawSphere(primitiveConsumer, poseStack, i, 0,5,0,3, 255,0,0,255);
+
+
         if(elementList != null && !elementList.isEmpty())
         {
             for(HoloTextElement element: elementList)
@@ -67,6 +80,8 @@ public class HoloProjectorBlockEntityRenderer implements BlockEntityRenderer<Hol
         RenderSystem.enableDepthTest();
 
     }
+
+
 
     @Override
     public boolean shouldRenderOffScreen(HoloProjectorBlockEntity pBlockEntity) {
