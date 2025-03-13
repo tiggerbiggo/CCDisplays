@@ -1,5 +1,6 @@
 package com.mc3699.ccdisplays.util;
 
+import com.mc3699.ccdisplays.graphicsmonitor.GraphicsMonitorBlockEntity;
 import com.mc3699.ccdisplays.holoprojector.HoloProjectorBlockEntity;
 import dan200.computercraft.api.peripheral.IPeripheral;
 import dan200.computercraft.api.peripheral.IPeripheralProvider;
@@ -20,6 +21,11 @@ public class ModPeripheralProviders implements IPeripheralProvider {
         if(blockEntity instanceof HoloProjectorBlockEntity)
         {
             return LazyOptional.of(() -> ((HoloProjectorBlockEntity) blockEntity).getPeripheral());
+        }
+
+        if(blockEntity instanceof GraphicsMonitorBlockEntity)
+        {
+            return LazyOptional.of(() -> ((GraphicsMonitorBlockEntity) blockEntity).getPeripheral());
         }
 
 

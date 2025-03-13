@@ -1,6 +1,7 @@
 package com.mc3699.ccdisplays.util;
 
 import com.mc3699.ccdisplays.CCDisplays;
+import com.mc3699.ccdisplays.graphicsmonitor.rendering.GraphicsMonitorBlockEntityRenderer;
 import com.mc3699.ccdisplays.holoprojector.rendering.HoloProjectorBlockEntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraftforge.api.distmarker.Dist;
@@ -15,6 +16,7 @@ public class ClientEvents {
     public static void registerRenderer(EntityRenderersEvent.RegisterRenderers event)
     {
         event.registerBlockEntityRenderer(ModBlockEntities.HOLOGRAM_PROJECTOR.get(), HoloProjectorBlockEntityRenderer::new);
+        event.registerBlockEntityRenderer(ModBlockEntities.GRAPHICS_MONITOR.get(), GraphicsMonitorBlockEntityRenderer::new);
     }
 
 }

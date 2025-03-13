@@ -1,6 +1,7 @@
 package com.mc3699.ccdisplays.util;
 
 import com.mc3699.ccdisplays.CCDisplays;
+import com.mc3699.ccdisplays.graphicsmonitor.GraphicsMonitorBlock;
 import com.mc3699.ccdisplays.holoprojector.HoloProjectorBlock;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -19,7 +20,7 @@ public class ModBlocks {
 
     public static RegistryObject<Block> HOLOGRAM_PROJECTOR = registerBlock("holo_projector", HoloProjectorBlock::new);
 
-
+    public static RegistryObject<Block> GRAPHICS_MONITOR = registerBlock("graphics_monitor", GraphicsMonitorBlock::new);
 
 
 
