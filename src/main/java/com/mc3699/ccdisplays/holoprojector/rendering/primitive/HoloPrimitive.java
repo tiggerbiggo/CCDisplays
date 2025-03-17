@@ -3,6 +3,7 @@ package com.mc3699.ccdisplays.holoprojector.rendering.primitive;
 import com.mc3699.ccdisplays.holoprojector.rendering.HoloColor;
 import com.mc3699.ccdisplays.holoprojector.rendering.IHoloDrawable;
 import com.mc3699.ccdisplays.holoprojector.rendering.offset.HoloOffset;
+import com.mc3699.ccdisplays.util.ObjectUtils;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.renderer.MultiBufferSource;
@@ -13,22 +14,14 @@ import net.minecraft.nbt.StringTag;
 import java.util.HashMap;
 
 public class HoloPrimitive implements IHoloDrawable {
+    private static final String HOLOTYPE = "PRIMITIVE";
+    static{
+        IHoloDrawable.registerType(HOLOTYPE, HoloPrimitive::fromTag);
+    }
     private final HoloOffset offset;
     private final HoloPrimitiveType primitive;
     public final HoloColor col;
     private final String offsetName;
-
-    private static int getParamOrDefault(HashMap<String, Object> params, String key, int defaultValue) {
-        Object value = params.get(key);
-        if (value == null) {
-            return defaultValue;
-        } else if (value instanceof Number) {
-            return ((Number) value).intValue();
-        } else {
-            return defaultValue;
-        }
-    }
-
     public HoloPrimitive(HoloOffset offset, HoloPrimitiveType primitive, int r, int g, int b, int a, String offsetName) {
         this.offset = offset;
         this.primitive = primitive;
@@ -47,6 +40,16 @@ public class HoloPrimitive implements IHoloDrawable {
         this.offsetName = (String)params.get("offsetName");
     }
 
+    private static int getParamOrDefault(HashMap<String, Object> params, String key, int defaultValue) {
+        return ObjectUtils.getParamOrDefault(params, key, defaultValue, Integer.class);
+    }
+
+
+    @Override
+    public String getType() {
+        return "PRIMITIVE";
+    }
+
     @Override
     public void draw(PoseStack pPoseStack, MultiBufferSource pBuffer) {
         pPoseStack.pushPose();
@@ -63,10 +66,12 @@ public class HoloPrimitive implements IHoloDrawable {
     public CompoundTag generateTag() {
         CompoundTag tag = new CompoundTag();
         col.writeTag(tag);
-
+        tag.put("holoType", StringTag.valueOf(HOLOTYPE));
         tag.put("offset", offset.generateTag());
-        tag.put("type", StringTag.valueOf(primitive.name()));
-        tag.put("offsetName", StringTag.valueOf(offsetName));
+        tag.put("primitiveType", StringTag.valueOf(primitive.name()));
+        if(offsetName != null) {
+            tag.put("offsetName", StringTag.valueOf(offsetName));
+        }
         return tag;
     }
 
@@ -80,9 +85,21 @@ public class HoloPrimitive implements IHoloDrawable {
         int g = tag.getInt("g");
         int b = tag.getInt("b");
         int a = tag.getInt("a");
-        String offsetName = tag.getString("offsetName");
+
+        String offsetName = null;
+        if(tag.contains("offsetName")) {
+            offsetName = tag.getString("offsetName");
+        }
+
         HoloOffset offset = HoloOffset.fromTag(tag.getCompound("offset"));
-        HoloPrimitiveType type = HoloPrimitiveType.valueOf(tag.getString("type"));
+        String typeName = tag.getString("primitiveType");
+        HoloPrimitiveType type;
+        try {
+            type = HoloPrimitiveType.valueOf(typeName);
+        }
+        catch (IllegalArgumentException e){
+            type = HoloPrimitiveType.BOX;
+        }
         return new HoloPrimitive(offset, type, r, g, b, a, offsetName);
     }
 
@@ -93,6 +110,7 @@ public class HoloPrimitive implements IHoloDrawable {
         result.put("b", (float)col.b);
         result.put("a", (float)col.a);
         result.put("offsetName", offsetName);
+        result.put("primitiveType", primitive.name());
         offset.putMap(result);
         return result;
     }

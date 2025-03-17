@@ -1,6 +1,9 @@
 package com.mc3699.ccdisplays.holoprojector.rendering.text;
 
+import com.mc3699.ccdisplays.holoprojector.rendering.HoloColor;
 import com.mc3699.ccdisplays.holoprojector.rendering.IHoloDrawable;
+import com.mc3699.ccdisplays.holoprojector.rendering.offset.HoloOffset;
+import com.mc3699.ccdisplays.util.ObjectUtils;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import net.minecraft.client.Minecraft;
@@ -8,79 +11,73 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.nbt.CompoundTag;
 
-public class HoloTextElement implements IHoloDrawable {
+import java.util.HashMap;
 
-    private final float xPos;
-    private final float yPos;
-    private final float zPos;
-    private final int color;
-    private final float rotation;
-    private final float scale;
+public class HoloTextElement implements IHoloDrawable {
+    private static final String HOLOTYPE = "TEXT";
+    static{
+        IHoloDrawable.registerType(HOLOTYPE, HoloTextElement::new);
+    }
+
+    private final HoloOffset offset;
     private final String text;
+    private final HoloColor col;
     private final String offsetName;
 
-    public HoloTextElement(float x, float y, float z, float rotation, float scale, int color, String text, String offset)
-    {
-        this.xPos = x;
-        this.yPos = y;
-        this.zPos = z;
-        this.color = color;
-        this.text = text;
-        this.scale = scale;
-        this.rotation = rotation;
-        this.offsetName = offset;
-    }
-    public HoloTextElement(float x, float y, float z, float rotation, float scale, int color, String text)
-    {
-        this(x, y, z, rotation, scale, color, text, "");
+    public HoloTextElement(String text, HoloColor color, HoloOffset offset, String offsetName) {
+        this.text = text != null ? text : "Sample Text";
+        this.offset = offset != null ? offset : new HoloOffset();
+        this.col = color != null ? color : new HoloColor();
+        this.offsetName = offsetName;
     }
 
-
+    public HoloTextElement(HashMap<String, Object> params) {
+        this(
+                ObjectUtils.getParamOrDefault(params, "text", null, String.class),
+                new HoloColor(
+                        params
+                ),
+                HoloOffset.fromParameterMap(params),
+                ObjectUtils.getParamOrDefault(params, "offsetName", null, String.class)
+        );
+    }
+    public HoloTextElement(CompoundTag tag){
+        this(
+                tag.contains("text") ? tag.getString("text") : null,
+                tag.contains("color") ? new HoloColor(tag.getInt("color")) : null,
+                tag.contains("offset") ? HoloOffset.fromTag(tag.getCompound("offset")) : null,
+                tag.contains("offsetName") ? tag.getString("offsetName") : null
+        );
+    }
 
     public String getText() {
         return text;
-    }
-
-    public float getXPos() {
-        return xPos;
-    }
-
-    public float getYPos() {
-        return yPos;
-    }
-
-    public float getZPos() {
-        return zPos;
-    }
-
-    public int getColor() {
-        return color;
-    }
-
-    public float getRotation() {
-        return rotation;
-    }
-
-    public float getScale() {
-        return scale;
     }
 
     public String getOffsetName(){
         return offsetName;
     }
 
+    @Override
+    public String getType() {
+        return "TEXT";
+    }
+
+    @Override
     public void draw(PoseStack pPoseStack, MultiBufferSource pBuffer) {
         pPoseStack.pushPose();
-        pPoseStack.translate(this.xPos,this.yPos,this.zPos);
-        pPoseStack.mulPose(Axis.ZP.rotationDegrees(-180));
-        pPoseStack.scale(this.scale,this.scale,this.scale);
-        pPoseStack.mulPose(Axis.YP.rotationDegrees(this.rotation));
+        offset.applyOffset(pPoseStack);
         Font font = Minecraft.getInstance().font;
+        float fontHeight = font.lineHeight; // Get the height of a line in the font
+        float scale = 1.0f / fontHeight;    // Scale to make text height 1 block
+        pPoseStack.scale(scale, scale, scale);
+        pPoseStack.mulPose(Axis.ZP.rotationDegrees(-180));
+        //ClientCameraCache.applyTextFlipping(pPoseStack);
         font.drawInBatch(
-                this.text,
+                text,
                 0,
                 0,
-                this.color,
+                col.toRGBA(),
                 false,
                 pPoseStack.last().pose(),
                 pBuffer,
@@ -94,27 +91,27 @@ public class HoloTextElement implements IHoloDrawable {
 
     public CompoundTag generateTag(){
         CompoundTag elementTag = new CompoundTag();
-        elementTag.putString("text",this.text);
-        elementTag.putFloat("x",this.xPos);
-        elementTag.putFloat("y",this.yPos);
-        elementTag.putFloat("z",this.zPos);
-        elementTag.putFloat("rotation",this.rotation);
-        elementTag.putFloat("scale",this.scale);
-        elementTag.putInt("color",this.color);
-        elementTag.putString("offset",this.offsetName);
+        elementTag.putString("holoType", "TEXT");
+        elementTag.putString("text", text);
+        elementTag.put("offset", offset.generateTag());
+        elementTag.putInt("color", col.toRGBA());
+        if(offsetName != null){
+            elementTag.putString("offsetName", offsetName);
+        }
         return elementTag;
     }
 
-    public static HoloTextElement fromTag(CompoundTag tag){
-        return new HoloTextElement(
-                tag.getFloat("x"),
-                tag.getFloat("y"),
-                tag.getFloat("z"),
-                tag.getFloat("rotation"),
-                tag.getFloat("scale"),
-                tag.getInt("color"),
-                tag.getString("text"),
-                tag.getString("offset")
-        );
+    public HashMap<String, Object> asMap() {
+        HashMap<String, Object> result = new HashMap<>();
+        result.put("r", (float)col.r);
+        result.put("g", (float)col.g);
+        result.put("b", (float)col.b);
+        result.put("a", (float)col.a);
+        if(offsetName != null){
+            result.put("offsetName", offsetName);
+        }
+        result.put("text", text);
+        offset.putMap(result);
+        return result;
     }
 }

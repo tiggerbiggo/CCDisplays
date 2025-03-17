@@ -33,7 +33,7 @@ public class HoloProjectorBlockEntity extends BlockEntity {
     @Override
     public void load(CompoundTag pTag) {
         super.load(pTag);
-        elementManager.clearElements();
+        elementManager.clearAll();
         elementManager.load(pTag);
     }
 

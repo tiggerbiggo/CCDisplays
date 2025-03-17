@@ -4,15 +4,24 @@ import com.mc3699.ccdisplays.holoprojector.rendering.HoloColor;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
+import java.util.Arrays;
+import java.util.List;
+
 public enum HoloPrimitiveType {
     BOX(PrimitiveDrawMethods::drawCube),
     SPHERE(PrimitiveDrawMethods::drawSphere),
     CYLINDER(PrimitiveDrawMethods::drawCylinder);
 
+    private static final List<String> valueList = Arrays.asList(HoloPrimitiveType.values()).stream().map(Enum::name).toList();
+
     private final IPrimitiveDrawer drawFunction;
 
     HoloPrimitiveType(IPrimitiveDrawer drawFunction){
         this.drawFunction = drawFunction;
+    }
+
+    public static List<String> getValueList() {
+        return valueList;
     }
 
     public void drawPrimitive(

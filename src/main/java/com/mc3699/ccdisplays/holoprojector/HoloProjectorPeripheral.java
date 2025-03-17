@@ -1,10 +1,12 @@
 package com.mc3699.ccdisplays.holoprojector;
 
+import com.mc3699.ccdisplays.holoprojector.rendering.ElementManager;
 import com.mc3699.ccdisplays.holoprojector.rendering.offset.BindingModifier;
 import com.mc3699.ccdisplays.holoprojector.rendering.offset.HoloOffset;
 import com.mc3699.ccdisplays.holoprojector.rendering.primitive.HoloPrimitive;
 import com.mc3699.ccdisplays.holoprojector.rendering.primitive.HoloPrimitiveType;
 import com.mc3699.ccdisplays.holoprojector.rendering.text.HoloTextElement;
+import com.mc3699.ccdisplays.util.ObjectUtils;
 import dan200.computercraft.api.lua.IArguments;
 import dan200.computercraft.api.lua.LuaException;
 import dan200.computercraft.api.lua.LuaFunction;
@@ -18,9 +20,12 @@ public class HoloProjectorPeripheral implements IPeripheral {
 
     private final HoloProjectorBlockEntity blockEntity;
 
+    private final ElementManager elementManager;
+
     HoloProjectorPeripheral(HoloProjectorBlockEntity blockEntity)
     {
         this.blockEntity = blockEntity;
+        this.elementManager = blockEntity.getElementManager();
     }
 
 
@@ -30,63 +35,56 @@ public class HoloProjectorPeripheral implements IPeripheral {
     }
 
     @LuaFunction
-    public final int addText(String text, double x, double y, double z, double rotation, double scale, int color, @Nullable String offset)
-    {
-        HoloTextElement element;
-        if(offset == null) {
-            element = new HoloTextElement((float) x, (float) y, (float) z, (float) rotation, (float) scale, color, text);
+    public final MethodResult addText(IArguments args){
+        try {
+            HashMap<String, Object> params = (HashMap<String, Object>) args.getTable(0);
+            HoloTextElement textElement = new HoloTextElement(params);
+            HashMap<String, Object> result = textElement.asMap();
+            int id = elementManager.addElement(textElement);
+            result.put("id", (float)id);
+            return MethodResult.of(result);
         }
-        else{
-            element = new HoloTextElement((float) x, (float) y, (float) z, (float) rotation, (float) scale, color, text, offset);
+        catch(LuaException | ClassCastException e){
+            return MethodResult.of(false, e.getMessage());
         }
-        return this.blockEntity.getElementManager().addText(element);
     }
 
     @LuaFunction
-    public final boolean replaceText(int index, String text, double x, double y, double z, double rotation, double scale, int color, @Nullable String offset) {
-        if(index >= 0) {
-            HoloTextElement element;
-            if(offset == null) {
-                element = new HoloTextElement((float) x, (float) y, (float) z, (float) rotation, (float) scale, color, text);
+    public final MethodResult replaceText(IArguments args){
+        try {
+            HashMap<String, Object> params = (HashMap<String, Object>) args.getTable(0);
+            HoloTextElement textElement = new HoloTextElement(params);
+            HashMap<String, Object> result = textElement.asMap();
+            int index = ObjectUtils.getParamOrDefault(params, "id", -1, Integer.class);
+            if(index <= -1){
+                return MethodResult.of(false, "id was nil or less than 0");
             }
-            else{
-                element = new HoloTextElement((float) x, (float) y, (float) z, (float) rotation, (float) scale, color, text, offset);
+            elementManager.replaceElement(index, textElement);
+            result.put("id", index);
+            return MethodResult.of(result);
+        }
+        catch(LuaException | ClassCastException e){
+            return MethodResult.of(false, e.getMessage());
+        }
+    }
+
+    @LuaFunction
+    public final MethodResult setOffset(IArguments args){
+        try{
+            HashMap<String, Object> params = (HashMap<String, Object>) args.getTable(0);
+            if(params == null){
+                return MethodResult.of(false, "Table expected, found " + args.getType(0));
             }
-            return this.blockEntity.getElementManager().replaceText(index, element);
+            String offsetName = ObjectUtils.getParamOrDefault(params, "offsetName", null, String.class);
+            if(offsetName == null){
+                return MethodResult.of(false, "Expected table key 'offsetName' to be a string, found non-string value or nil.");
+            }
+            elementManager.setOffset(offsetName, HoloOffset.fromParameterMap(params));
+            return MethodResult.of();
         }
-        return false;
-    }
-
-    @LuaFunction
-    public final boolean setTextOffset(int index, String offsetName){
-        HoloTextElement toUpdate = this.blockEntity.getElementManager().getText(index);
-        if(toUpdate == null){
-            return false;
+        catch(LuaException | ClassCastException e){
+            return MethodResult.of(false, e.getMessage());
         }
-        HoloTextElement newText = new HoloTextElement(
-                toUpdate.getXPos(),
-                toUpdate.getYPos(),
-                toUpdate.getZPos(),
-                toUpdate.getRotation(),
-                toUpdate.getScale(),
-                toUpdate.getColor(),
-                toUpdate.getText(),
-                offsetName
-        );
-
-        return this.blockEntity.getElementManager().replaceText(index, newText);
-    }
-
-    @LuaFunction
-    public final boolean setOffset(String name, double xPos, double yPos, double zPos, double xRot, double yRot, double zRot, double xScale, double yScale, double zScale){
-        if(name == ""){
-            return false;
-        }
-        HoloOffset offset = new HoloOffset(
-                (float)xPos, (float)yPos, (float)zPos,
-                (float)xRot, (float)yRot, (float)zRot,
-                (float)xScale, (float)yScale, (float)zScale);
-        return this.blockEntity.getElementManager().setOffset(name, offset);
     }
 
     @LuaFunction
@@ -114,12 +112,18 @@ public class HoloProjectorPeripheral implements IPeripheral {
     @LuaFunction
     public MethodResult addPrimitive(IArguments args){
         try {
-            String primitiveType = args.getString(0);
-            HashMap<String, Object> params = (HashMap<String, Object>) args.getTable(1);
+            HashMap<String, Object> params = (HashMap<String, Object>) args.getTable(0);
+            if(params == null){
+                return MethodResult.of(false, "Table expected, found " + args.getType(0));
+            }
+            String primitiveType = ObjectUtils.getParamOrDefault(params, "primitiveType", null, String.class);
+            if(primitiveType == null){
+                return MethodResult.of(false, "Expected table key 'primitiveType' to be a string, found non-string value or nil.");
+            }
             HoloOffset offset = HoloOffset.fromParameterMap(params);
             HoloPrimitive primitive = new HoloPrimitive(offset, HoloPrimitiveType.valueOf(primitiveType), params);
             HashMap<String, Object> result = primitive.asMap();
-            int id = this.blockEntity.getElementManager().addPrimitive(primitive);
+            int id = elementManager.addElement(primitive);
             result.put("id", (float)id);
             return MethodResult.of(result);
         }
@@ -131,25 +135,40 @@ public class HoloProjectorPeripheral implements IPeripheral {
     @LuaFunction
     public MethodResult replacePrimitive(IArguments args){
         try {
-            int index = args.getInt(0);
-            String primitiveType = args.getString(1);
-            HashMap<String, Object> params = (HashMap<String, Object>) args.getTable(2);
+            HashMap<String, Object> params = (HashMap<String, Object>) args.getTable(0);
+            if(params == null){
+                return MethodResult.of(false, "Table expected, found " + args.getType(0));
+            }
+            String primitiveType = ObjectUtils.getParamOrDefault(params, "primitiveType", null, String.class);
+            if(primitiveType == null){
+                return MethodResult.of(false, "Expected table key 'primitiveType' to be a string, found non-string value or nil.");
+            }
+            int index = ObjectUtils.getParamOrDefault(params, "id", -1, Integer.class);
+            if(index <= -1){
+                return MethodResult.of(false, "id was nil or less than 0");
+            }
             HoloOffset offset = HoloOffset.fromParameterMap(params);
             HoloPrimitive primitive = new HoloPrimitive(offset, HoloPrimitiveType.valueOf(primitiveType), params);
             HashMap<String, Object> result = primitive.asMap();
-            this.blockEntity.getElementManager().replacePrimitive(index, primitive);
+            elementManager.replaceElement(index, primitive);
             result.put("id", (float)index);
             return MethodResult.of(result);
         }
         catch(LuaException | ClassCastException e){
-            return MethodResult.of(false);
+            return MethodResult.of(false, e.getMessage());
         }
+    }
+
+    @LuaFunction
+    public MethodResult getPrimitiveTypes(){
+        //Object cast is for explicitly passing the whole array instead of varargs
+        return MethodResult.of(HoloPrimitiveType.getValueList());
     }
 
     @LuaFunction
     public void clear()
     {
-        this.blockEntity.getElementManager().clearElements();
+        this.blockEntity.getElementManager().clearAll();
     }
 
 
