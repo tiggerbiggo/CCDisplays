@@ -80,7 +80,7 @@ public class HoloProjectorPeripheral implements IPeripheral {
                 return MethodResult.of(false, "Expected table key 'offsetName' to be a string, found non-string value or nil.");
             }
             elementManager.setOffset(offsetName, HoloOffset.fromParameterMap(params));
-            return MethodResult.of();
+            return MethodResult.of(true);
         }
         catch(LuaException | ClassCastException e){
             return MethodResult.of(false, e.getMessage());
