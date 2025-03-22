@@ -69,11 +69,11 @@ public class HoloTextElement implements IHoloDrawable {
         Font font = Minecraft.getInstance().font;
         float fontHeight = font.lineHeight; // Get the height of a line in the font
         float scale = 1.0f / fontHeight;    // Scale to make text height 1 block
+        offset.applyOffset(pPoseStack);
         pPoseStack.scale(scale, scale, scale);
         pPoseStack.mulPose(Axis.ZP.rotationDegrees(-180));
         //CURRENTLY BROKEN
         //ClientCameraCache.applyTextFlipping(pPoseStack);
-        offset.applyOffset(pPoseStack);
         font.drawInBatch(
                 text,
                 0,
